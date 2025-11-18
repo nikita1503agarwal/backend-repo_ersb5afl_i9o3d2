@@ -1,48 +1,44 @@
 """
-Database Schemas
+Database Schemas for SplitPay
 
-Define your MongoDB collection schemas here using Pydantic models.
-These schemas are used for data validation in your application.
+Each Pydantic model maps to a MongoDB collection (class name lowercased).
+- User -> "user"
+- Escrow -> "escrow"
 
-Each Pydantic model represents a collection in your database.
-Model name is converted to lowercase for the collection name:
-- User -> "user" collection
-- Product -> "product" collection
-- BlogPost -> "blogs" collection
+These models are used for validation and for the database viewer.
 """
+from __future__ import annotations
 
-from pydantic import BaseModel, Field
-from typing import Optional
+from pydantic import BaseModel, Field, EmailStr, condecimal
+from typing import List, Optional, Literal
+from decimal import Decimal
 
-# Example schemas (replace with your own):
 
 class User(BaseModel):
-    """
-    Users collection schema
-    Collection name: "user" (lowercase of class name)
-    """
     name: str = Field(..., description="Full name")
-    email: str = Field(..., description="Email address")
-    address: str = Field(..., description="Address")
-    age: Optional[int] = Field(None, ge=0, le=120, description="Age in years")
-    is_active: bool = Field(True, description="Whether user is active")
+    email: EmailStr = Field(..., description="Email address")
+    wallet: Optional[str] = Field(None, description="On-chain wallet address")
+    is_active: bool = Field(True, description="Whether the user is active")
 
-class Product(BaseModel):
-    """
-    Products collection schema
-    Collection name: "product" (lowercase of class name)
-    """
-    title: str = Field(..., description="Product title")
-    description: Optional[str] = Field(None, description="Product description")
-    price: float = Field(..., ge=0, description="Price in dollars")
-    category: str = Field(..., description="Product category")
-    in_stock: bool = Field(True, description="Whether product is in stock")
 
-# Add your own schemas here:
-# --------------------------------------------------
+class Recipient(BaseModel):
+    email: EmailStr = Field(..., description="Recipient email")
+    percentage: float = Field(..., ge=0, le=100, description="Payout percentage of total amount")
+    wallet: Optional[str] = Field(None, description="Recipient on-chain wallet address (optional)")
+    confirmed: bool = Field(False, description="Has the recipient confirmed?")
 
-# Note: The Flames database viewer will automatically:
-# 1. Read these schemas from GET /schema endpoint
-# 2. Use them for document validation when creating/editing
-# 3. Handle all database operations (CRUD) directly
-# 4. You don't need to create any database endpoints!
+
+class Escrow(BaseModel):
+    title: str = Field(..., description="Short name for this escrow")
+    description: Optional[str] = Field(None, description="What is being paid for")
+    payer_email: EmailStr = Field(..., description="Payer's email")
+    total_amount: condecimal(gt=0) = Field(..., description="Total amount to be distributed")
+    currency: Literal["USD", "USDC", "USDT", "ETH", "BTC"] = Field("USDC", description="Currency/asset symbol")
+    chain: Literal["ethereum", "polygon", "solana", "bitcoin", "testnet"] = Field(
+        "testnet", description="Target blockchain network"
+    )
+    recipients: List[Recipient] = Field(..., description="Who gets paid and how much")
+    payer_confirmed: bool = Field(False, description="Has the payer confirmed?")
+    status: Literal["pending", "funded", "releasable", "released", "cancelled"] = Field(
+        "funded", description="Lifecycle status of the escrow"
+    )
