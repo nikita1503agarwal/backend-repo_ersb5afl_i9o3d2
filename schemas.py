@@ -42,3 +42,10 @@ class Escrow(BaseModel):
     status: Literal["pending", "funded", "releasable", "released", "cancelled"] = Field(
         "funded", description="Lifecycle status of the escrow"
     )
+
+
+class TelegramProfile(BaseModel):
+    chat_id: int = Field(..., description="Telegram chat ID")
+    username: Optional[str] = Field(None, description="Telegram @username")
+    email: Optional[EmailStr] = Field(None, description="Linked email for confirmations")
+    wallet: Optional[str] = Field(None, description="Linked wallet (optional)")
